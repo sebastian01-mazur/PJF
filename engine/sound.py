@@ -3,13 +3,11 @@ import pygame
 import os
 
 
-# UWAGA: Tutaj NIE MOŻE być linii "from engine.sound import SoundManager"
-# Ten plik definiuje tę klasę, więc nie musi jej importować.
-
 class SoundManager:
     def __init__(self):
         pygame.mixer.init()
-        self.volume = 0.5
+        # ZMIANA: 2% głośności na start
+        self.volume = 0.02
 
         # Ścieżki
         self.music_path = "assets/menu_sound.wav"
@@ -39,9 +37,7 @@ class SoundManager:
 
     def set_volume(self, val):
         self.volume = val
-        # Muzyka
         if pygame.mixer.music.get_busy():
             pygame.mixer.music.set_volume(val)
-        # SFX
         if self.click_sound:
             self.click_sound.set_volume(val)

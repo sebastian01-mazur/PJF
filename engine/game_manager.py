@@ -20,38 +20,56 @@ class GameManager:
         self.bg_image = None
 
         # --- ZASOBY GRAFICZNE ---
-        self.res_images = {}  # Do lokacji (duże)
-        self.res_icons = {}  # Do UI (małe)
+        self.images_db = {}
+        self.res_icons = {}
+        self.images_res = {}
 
         self.locations = []
+
+        # --- KONFIGURACJA WYMIARÓW LOKACJI (PIONOWE!) ---
+        self.LOC_W = 110
+        self.LOC_H = 160
+        self.LOC_GAP = 20
 
         # 1. Ładowanie Tła
         try:
             self.bg_original = pygame.image.load("assets/bg.PNG")
         except FileNotFoundError:
-            print("Brak tła assets/bg.PNG")
+            pass
 
-        # 2. Ładowanie Obrazków Surowców
-        # Mapowanie: nazwa w kodzie -> nazwa pliku
-        files = {
+            # 2. Ładowanie Obrazków Lokalizacji
+        files_map = {
+            "brzeg": "brzeg.png",
+            "las": "las.png",
+            "zywica": "zywica.png",
+            "kamyki": "kamyki.png",
+            "krzaki": "krzaki.png",
+            "polana": "polana.png"
+        }
+
+        for key, filename in files_map.items():
+            path = os.path.join("assets", filename)
+            if os.path.exists(path):
+                raw_img = pygame.image.load(path)
+                self.images_db[key] = pygame.transform.smoothscale(raw_img, (self.LOC_W, self.LOC_H))
+            else:
+                self.images_db[key] = None
+
+        # 3. ŁADOWANIE IKON SUROWCÓW (Do paska na dole)
+        files_res = {
             "twig": "twigs.png",
             "resin": "resin.png",
             "pebble": "stones.png",
             "berry": "berries.png"
         }
 
-        for res_key, filename in files.items():
+        for key, filename in files_res.items():
             path = os.path.join("assets", filename)
             if os.path.exists(path):
-                img = pygame.image.load(path)
-                # Skalowanie dla lokacji (140x90)
-                self.res_images[res_key] = pygame.transform.smoothscale(img, (140, 90))
-                # Skalowanie dla UI (30x30)
-                self.res_icons[res_key] = pygame.transform.smoothscale(img, (30, 30))
+                raw_img = pygame.image.load(path)
+                self.images_res[key] = pygame.transform.smoothscale(raw_img, (30, 30))
             else:
-                print(f"Brak pliku: {path}")
-                self.res_images[res_key] = None
-                self.res_icons[res_key] = None
+                self.images_res[key] = None
 
         # Inicjalizacja gry
         source = CARD_DB * 4
@@ -81,31 +99,35 @@ class GameManager:
 
         self.btn_menu = pygame.Rect(w - 110, 10, 100, 40)
 
-        # --- TWORZENIE LOKACJI Z OBRAZKAMI ---
-        total_loc_width = 6 * 150
-        start_x = (w - total_loc_width) // 2
-        y = 100
+        # TWORZENIE LOKACJI
+        total_width = (6 * self.LOC_W) + (5 * self.LOC_GAP)
+        start_x = (w - total_width) // 2
+        y = 60
 
-        # Definicje: (Nazwa, Zysk, CzyEkskluzywne, KluczObrazka)
         loc_defs = [
-            ("Brzeg (2 Gałązki)", {"twig": 2}, True, "twig"),
-            ("Las (3 Gałązki)", {"twig": 3}, True, "twig"),
-            ("Żywica (2 Żywice)", {"resin": 2}, True, "resin"),
-            ("Kamyki (1 Kamyk)", {"pebble": 1}, True, "pebble"),
-            ("Krzaki (1 Jagoda)", {"berry": 1}, True, "berry"),
-            ("Polana (2 Karty)", {"cards": 2}, False, None)  # Brak obrazka dla kart
+            ("Brzeg (2 Gałązki)", {"twig": 2}, True, "brzeg"),
+            ("Las (3 Gałązki)", {"twig": 3}, True, "las"),
+            ("Żywica (2 Żywice)", {"resin": 2}, True, "zywica"),
+            ("Kamyki (1 Kamyk)", {"pebble": 1}, True, "kamyki"),
+            ("Krzaki (1 Jagoda)", {"berry": 1}, True, "krzaki"),
+            ("Polana (2 Karty)", {"cards": 2}, False, "polana")
         ]
 
         if not self.locations:
             for i, (name, gain, excl, img_key) in enumerate(loc_defs):
-                rect = pygame.Rect(start_x + (i * 150), y, 140, 90)
-                # Pobierz obrazek jeśli istnieje
-                img = self.res_images.get(img_key) if img_key else None
+                current_x = start_x + (i * (self.LOC_W + self.LOC_GAP))
+                rect = pygame.Rect(current_x, y, self.LOC_W, self.LOC_H)
+                img = self.images_db.get(img_key)
                 self.locations.append(Location(name, rect.x, rect.y, gain, excl, image=img))
+                self.locations[-1].rect.width = self.LOC_W
+                self.locations[-1].rect.height = self.LOC_H
         else:
             for i, loc in enumerate(self.locations):
-                loc.rect.x = start_x + (i * 150)
+                current_x = start_x + (i * (self.LOC_W + self.LOC_GAP))
+                loc.rect.x = current_x
                 loc.rect.y = y
+                loc.rect.width = self.LOC_W
+                loc.rect.height = self.LOC_H
 
     @property
     def current_player(self):
@@ -142,7 +164,8 @@ class GameManager:
         if p.season == "ZIMA":
             p.season = "WIOSNA";
             p.workers_total += 1
-            p.activate_production()
+            if p.activate_production():
+                self.info_msg = "Wiosna: Produkcja aktywna!"
         elif p.season == "WIOSNA":
             p.season = "LATO";
             p.workers_total += 1
@@ -151,7 +174,8 @@ class GameManager:
         elif p.season == "LATO":
             p.season = "JESIEŃ";
             p.workers_total += 2
-            p.activate_production()
+            if p.activate_production():
+                self.info_msg = "Jesień: Produkcja aktywna!"
         elif p.season == "JESIEŃ":
             p.finished = True
             p.workers_total = 0
@@ -198,12 +222,13 @@ class GameManager:
                     self.next_turn()
                     return
 
-        # Karty
+        # Karty (Łąka)
         for i, card in enumerate(self.meadow):
             if card.rect and card.rect.collidepoint(pos):
                 self.buy_card(p, card, "MEADOW", i)
                 return
 
+        # Karty (Ręka)
         start_x = 20;
         hand_y = h - 170
         for i, card in enumerate(p.hand):
@@ -216,20 +241,44 @@ class GameManager:
         if len(p.city) >= 15:
             self.info_msg = "Miasto pełne!"
             return
+
         if p.can_afford(card):
-            p.pay(card)
+            is_free = p.pay(card)
+
+            # SPRAWDZANIE BONUSÓW (Niebieskie karty)
+            trigger_msgs = []
+            if hasattr(p, 'check_triggers'):  # Zabezpieczenie na wypadek braku metody
+                trigger_msgs = p.check_triggers(card)
+
+            for msg in trigger_msgs:
+                if "DRAW_CARD" in msg:
+                    try:
+                        count = int(msg.split(":")[1])
+                        for _ in range(count):
+                            if self.deck: p.hand.append(self.deck.pop())
+                    except:
+                        pass
+
             p.city.append(card)
+
             if card.type == "PROD":
                 for r, a in card.benefit.items(): p.resources[r] += a
+
             if source == "MEADOW":
                 self.meadow.pop(index);
                 self.refill_meadow()
             else:
                 p.hand.pop(index)
-            self.info_msg = f"Zbudowano {card.name}"
+
+            bonus_txt = " +Bonus!" if trigger_msgs else ""
+            if is_free:
+                self.info_msg = f"Zbudowano {card.name} (DARMO){bonus_txt}"
+            else:
+                self.info_msg = f"Zbudowano {card.name}{bonus_txt}"
+
             self.next_turn()
         else:
-            self.info_msg = "Brak surowców!"
+            self.info_msg = "Brak surowców lub budynku do pary!"
 
     def draw(self):
         screen = self.app.screen
@@ -250,43 +299,47 @@ class GameManager:
         for loc in self.locations: loc.draw(screen, font)
 
         # Łąka
-        meadow_y = 220
+        meadow_y = 240
         start_mx = (w - (8 * 110)) // 2
-        s = pygame.Surface((w, 160));
-        s.set_alpha(150);
-        s.fill((0, 0, 0))
-        screen.blit(s, (0, meadow_y))
 
+        # Rysowanie kart na łące z podświetleniem COMBO
+        p = self.current_player
         for i, card in enumerate(self.meadow):
-            card.draw_visual(screen, start_mx + (i * 110), meadow_y + 10, font)
+            bonus_name = None
+            if hasattr(p, 'check_bonus_potential'):
+                bonus_name = p.check_bonus_potential(card.tag)
+            card.draw_visual(screen, start_mx + (i * 110), meadow_y + 10, font, bonus_source=bonus_name)
 
         # Panel UI
-        p = self.current_player
         py = h - 200
         pygame.draw.rect(screen, UI_PANEL_COLOR, (0, py, w, 200))
         pygame.draw.line(screen, p.color, (0, py), (w, py), 5)
         screen.blit(self.app.title_font.render(self.info_msg, True, WHITE), (20, py + 10))
 
-        # SUROWCE (Teraz z ikonkami!)
+        # SUROWCE (Poprawione)
         rx = 20;
         ry = py + 50
-        for res_key in ["twig", "resin", "pebble", "berry"]:
-            icon = self.res_icons.get(res_key)
+        res_types = ["twig", "resin", "pebble", "berry"]
+        for res_key in res_types:
+            icon = self.images_res.get(res_key)
             if icon:
                 screen.blit(icon, (rx, ry - 15))
             else:
-                # Fallback kółko
-                pygame.draw.circle(screen, RES_COLORS.get(res_key), (rx + 15, ry), 10)
+                col = RES_COLORS.get(res_key, (255, 255, 255))
+                pygame.draw.circle(screen, col, (rx + 15, ry), 10)
 
             screen.blit(font.render(str(p.resources[res_key]), True, WHITE), (rx + 35, ry - 10))
-            rx += 80  # Zwiększony odstęp bo ikonki są szersze
+            rx += 80
 
         screen.blit(font.render(f"Robotnicy: {p.workers_available}/{p.workers_total}", True, WHITE), (rx + 20, ry - 10))
 
         hx = 20;
         hy = py + 80
         for i, card in enumerate(p.hand):
-            card.draw_visual(screen, hx + (i * 110), hy, font)
+            bonus_name = None
+            if hasattr(p, 'check_bonus_potential'):
+                bonus_name = p.check_bonus_potential(card.tag)
+            card.draw_visual(screen, hx + (i * 110), hy, font, bonus_source=bonus_name)
 
         bs_rect = pygame.Rect(w - 220, h - 60, 200, 40)
         col = (100, 100, 100)
