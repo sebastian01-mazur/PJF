@@ -27,7 +27,6 @@ CARD_DB = [
     {"name": "Król", "type": "VP", "tag": "CRITTER", "cost": {"berry": 5}, "points": 6, "benefit": {},
      "link_req": "KING", "desc": "Władca."},
 
-    # Mąż i Żona (korzystają z grafiki 'mar')
     {"name": "Mąż", "type": "VP", "tag": "CRITTER", "cost": {"berry": 3}, "points": 2, "benefit": {},
      "link_req": "FARMER", "desc": "Para farmerów."},
     {"name": "Żona", "type": "VP", "tag": "CRITTER", "cost": {"berry": 3}, "points": 2, "benefit": {},
@@ -36,7 +35,6 @@ CARD_DB = [
     {"name": "Kupiec", "type": "VP", "tag": "CRITTER", "cost": {"berry": 2}, "points": 3, "benefit": {},
      "link_req": "SHOPKEEPER", "desc": "Kupiec."},
 
-    # --- NOWOŚĆ: REZYDENCJA (korzysta z grafiki 'res') ---
     {"name": "Rezydencja", "type": "VP", "tag": "CONSTRUCT", "cost": {"twig": 2, "resin": 2, "pebble": 1}, "points": 3,
      "benefit": {}, "desc": "Luksusowy dom."}
 ]
@@ -65,7 +63,7 @@ class Card:
         if image:
             surface.blit(image, (x, y))
         else:
-            # Fallback (gdyby brakowało pliku)
+            # Fallback
             if self.type == "PROD":
                 bg_col = (60, 100, 60)
             elif self.type == "PASSIVE":
@@ -85,42 +83,29 @@ class Card:
         thickness = 4 if bonus_source else 2
         pygame.draw.rect(surface, border_col, self.rect, thickness, border_radius=8)
 
-        # 3. PANELDONIY (Tło pod nazwę)
+        # 3. NAZWA (Góra)
         header = pygame.Surface((100, 20))
         header.set_alpha(180)
         header.fill((0, 0, 0))
         surface.blit(header, (x, y))
 
-        # Nazwa Karty
         name_surf = pygame.font.SysFont("Arial", 12, bold=True).render(self.name, True, (255, 255, 255))
         surface.blit(name_surf, (x + 5, y + 2))
 
-        # 4. KOSZT (Lewy Dolny Róg)
-        cost_y = y + 115
-        # Tło pod koszt
-        s_cost = pygame.Surface((40, 20))
-        s_cost.set_alpha(180);
-        s_cost.fill((0, 0, 0))
-        surface.blit(s_cost, (x + 2, cost_y))
-
-        cost_txt = ""
-        for r, a in self.cost.items():
-            short = r[0].upper()
-            cost_txt += f"{a}{short} "
-        c_surf = pygame.font.SysFont("Arial", 11, bold=True).render(cost_txt, True, (255, 200, 200))
-        surface.blit(c_surf, (x + 4, cost_y + 2))
-
-        # 5. PUNKTY I EFEKT (Prawy Górny/Środek)
-        # VP w kółku w prawym górnym
-        pygame.draw.circle(surface, (0, 0, 0), (x + 88, y + 12), 10)  # Tło
-        pygame.draw.circle(surface, (255, 215, 0), (x + 88, y + 12), 9, width=1)  # Ramka
+        # 4. PUNKTY (Prawy Górny Róg)
+        # Małe kółeczko z VP
+        pygame.draw.circle(surface, (0, 0, 0), (x + 88, y + 12), 10)
+        pygame.draw.circle(surface, (255, 215, 0), (x + 88, y + 12), 9, width=1)
         vp_surf = pygame.font.SysFont("Arial", 12, bold=True).render(str(self.points), True, (255, 215, 0))
         surface.blit(vp_surf, (x + 88 - vp_surf.get_width() // 2, y + 5))
 
-        # COMBO
+        # 5. COMBO BADGE (Tylko informacja wizualna, że jest combo)
         if bonus_source:
             combo_font = pygame.font.SysFont("Arial", 11, bold=True)
             txt = combo_font.render(f"COMBO!", True, (255, 255, 0))
-            bg_rect = txt.get_rect(center=(x + 50, y + 35))
+            bg_rect = txt.get_rect(center=(x + 50, y + 125))  # Na dole karty
             pygame.draw.rect(surface, (0, 0, 0), bg_rect)
             surface.blit(txt, bg_rect)
+
+        # UWAGA: Usunęliśmy stąd rysowanie kosztu i opisów.
+        # To teraz będzie w TOOLTIPIE (okienku po najechaniu).

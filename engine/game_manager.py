@@ -23,7 +23,7 @@ class GameManager:
         self.images_db = {}  # Lokacje
         self.res_icons = {}  # UI
         self.images_res = {}  # Surowce
-        self.card_images = {}  # NOWOŚĆ: Karty
+        self.card_images = {}  # Karty
 
         self.locations = []
 
@@ -70,20 +70,19 @@ class GameManager:
             else:
                 self.images_res[key] = None
 
-        # 4. ŁADOWANIE GRAFIK KART (NOWOŚĆ)
-        # Mapujemy nazwy kart (z CARD_DB) na Twoje pliki
+        # 4. ŁADOWANIE GRAFIK KART
         cards_files = {
             "Farma": "farm.png",
             "Sklep": "shop.png",
             "Zamek": "castle.png",
             "Król": "king.png",
-            "Mąż": "mar.png",  # Mariage -> Mąż
-            "Żona": "mar.png",  # Mariage -> Żona (ten sam obrazek)
+            "Mąż": "mar.png",
+            "Żona": "mar.png",
             "Sędzia": "judge.png",
             "Historyk": "history.png",
             "Karczmarz": "innkeeper.png",
             "Kupiec": "shopkeeper.png",
-            "Rezydencja": "res.png"  # Residence -> Rezydencja
+            "Rezydencja": "res.png"
         }
 
         CARD_W, CARD_H = 100, 140
@@ -92,12 +91,9 @@ class GameManager:
             path = os.path.join("assets", filename)
             if os.path.exists(path):
                 img = pygame.image.load(path)
-                # Skalujemy duże 687x1024 do małego 100x140
                 self.card_images[name] = pygame.transform.smoothscale(img, (CARD_W, CARD_H))
-                print(f"Załadowano kartę: {name} z pliku {filename}")
             else:
                 self.card_images[name] = None
-                print(f"Brak pliku karty: {filename}")
 
         # Inicjalizacja gry
         source = CARD_DB * 4
@@ -302,9 +298,69 @@ class GameManager:
         else:
             self.info_msg = "Brak surowców lub budynku do pary!"
 
+    # --- NOWA FUNKCJA DO RYSOWANIA TOOLTIPA ---
+    def draw_hover_tooltip(self, screen, card, mouse_pos):
+        font_bold = pygame.font.SysFont("Arial", 14, bold=True)
+        font_reg = pygame.font.SysFont("Arial", 14)
+
+        # Tłumaczenie kodów surowców na język polski (dla estetyki)
+        res_trans = {"twig": "Drewno", "resin": "Żywica", "pebble": "Kamyk", "berry": "Jagoda"}
+
+        # 1. Przygotowanie treści
+        lines = []
+        lines.append((card.name, (255, 215, 0)))  # Nazwa na złoto
+        lines.append((f"Typ: {card.tag} / {card.type}", (200, 200, 200)))
+
+        # Koszt
+        cost_str = []
+        for r, a in card.cost.items():
+            name_pl = res_trans.get(r, r)
+            cost_str.append(f"{a} {name_pl}")
+        lines.append((f"Koszt: {', '.join(cost_str)}", (255, 150, 150)))
+
+        # Opis działania
+        lines.append(("Efekt:", (150, 255, 150)))
+        lines.append((card.desc, (255, 255, 255)))
+
+        # Combo / Linki
+        if card.link:
+            lines.append((f"Symbol: {card.link}", (100, 200, 255)))
+        if card.link_req:
+            lines.append((f"Wymaga: {card.link_req} (do pary)", (255, 100, 255)))
+
+        # 2. Obliczenie wymiarów okienka
+        box_w = 260
+        box_h = 20 + (len(lines) * 20)
+
+        x, y = mouse_pos
+        x += 15  # Przesunięcie żeby myszka nie zasłaniała
+        y += 15
+
+        # Zabezpieczenie przed wyjściem za ekran
+        if x + box_w > self.app.width: x -= box_w + 30
+        if y + box_h > self.app.height: y -= box_h + 30
+
+        # 3. Rysowanie
+        # Tło półprzezroczyste
+        s = pygame.Surface((box_w, box_h))
+        s.set_alpha(230)
+        s.fill((20, 20, 30))
+        screen.blit(s, (x, y))
+
+        # Ramka
+        pygame.draw.rect(screen, (100, 100, 100), (x, y, box_w, box_h), 2)
+
+        # Tekst
+        curr_y = y + 10
+        for text, color in lines:
+            surf = font_bold.render(text, True, color) if text == card.name else font_reg.render(text, True, color)
+            screen.blit(surf, (x + 10, curr_y))
+            curr_y += 20
+
     def draw(self):
         screen = self.app.screen
         w, h = self.app.width, self.app.height
+        mouse_pos = pygame.mouse.get_pos()
 
         if self.bg_image:
             screen.blit(self.bg_image, (0, 0))
@@ -320,20 +376,26 @@ class GameManager:
 
         for loc in self.locations: loc.draw(screen, font)
 
+        p = self.current_player
+
+        # Zmienna do przechowywania karty pod myszką
+        hovered_card = None
+
         # Łąka
         meadow_y = 240
         start_mx = (w - (8 * 110)) // 2
 
-        p = self.current_player
         for i, card in enumerate(self.meadow):
             bonus_name = None
             if hasattr(p, 'check_bonus_potential'):
                 bonus_name = p.check_bonus_potential(card.tag)
 
-            # Pobieramy obrazek karty
             img = self.card_images.get(card.name)
-
             card.draw_visual(screen, start_mx + (i * 110), meadow_y + 10, font, bonus_source=bonus_name, image=img)
+
+            # Sprawdzenie hovera
+            if card.rect and card.rect.collidepoint(mouse_pos):
+                hovered_card = card
 
         # Panel UI
         py = h - 200
@@ -357,7 +419,6 @@ class GameManager:
             rx += 80
 
         screen.blit(font.render(f"Robotnicy: {p.workers_available}/{p.workers_total}", True, WHITE), (rx + 20, ry - 10))
-
         score_text = font.render(f"PUNKTY: {p.score}", True, (255, 215, 0))
         screen.blit(score_text, (rx + 150, ry - 10))
 
@@ -385,8 +446,15 @@ class GameManager:
                 bonus_name = p.check_bonus_potential(card.tag)
 
             img = self.card_images.get(card.name)
-
             card.draw_visual(screen, hx + (i * 110), hy, font, bonus_source=bonus_name, image=img)
+
+            # Sprawdzenie hovera
+            if card.rect and card.rect.collidepoint(mouse_pos):
+                hovered_card = card
+
+        # NA SAMYM KOŃCU: JEŚLI JEST HOVER, RYSUJ OKIENKO
+        if hovered_card:
+            self.draw_hover_tooltip(screen, hovered_card, mouse_pos)
 
         bs_rect = pygame.Rect(w - 220, h - 60, 200, 40)
         col = (100, 100, 100)
