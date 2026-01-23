@@ -8,7 +8,7 @@ class Menu:
         self.app = app
         self.state = "MAIN"
 
-        # --- TŁO MENU ---
+        #TŁO MENU
         self.bg_original = None
         self.bg_image = None
         try:
@@ -61,14 +61,14 @@ class Menu:
         self.update_layout()
 
     def update_layout(self):
-        """Przelicza pozycje po zmianie rozmiaru okna"""
+        #Przelicza pozycje po zmianie rozmiaru okna
         cx = self.app.width // 2
         cy = self.app.height // 2
 
         if self.bg_original:
             self.bg_image = pygame.transform.scale(self.bg_original, (self.app.width, self.app.height))
 
-        # --- UKŁADANIE BLOKU PRZYCISKÓW ---
+        #UKŁADANIE BLOKU PRZYCISKÓW
         step = self.BTN_H + self.GAP
         center_y = cy + 50
 
@@ -81,7 +81,7 @@ class Menu:
         self.btn_quit.centerx = cx
         self.btn_quit.centery = center_y + step
 
-        # --- USTAWIENIA (UI) ---
+        #USTAWIENIA (UI)
         self.slider_rect.center = (cx, 250)
         self.btn_res.center = (cx, 330)
         self.btn_fullscreen.center = (cx, 400)
@@ -91,7 +91,7 @@ class Menu:
         self.sync_knob_to_volume()
 
     def sync_knob_to_volume(self):
-        """Pomocnicza funkcja ustawiająca gałkę idealnie wg aktualnej głośności"""
+        #Pomocnicza funkcja ustawiająca gałkę idealnie wg aktualnej głośności
         current_vol = self.app.sound.volume
         knob_x = self.slider_rect.x + (self.slider_rect.width * current_vol)
         self.slider_knob.center = (int(knob_x), self.slider_rect.centery)
@@ -170,12 +170,7 @@ class Menu:
             self.draw_img_btn(screen, self.btn_quit, "quit")
 
         elif self.state == "SETTINGS":
-            # --- FIX: WYMUSZAMY POZYCJĘ GAŁKI W KAŻDEJ KLATCE ---
-            # To jest kluczowe naprawienie błędu. Niezależnie od tego, co się stało przy
-            # zmianie rozdzielczości, tutaj gałka zostanie narysowana dokładnie tam,
-            # gdzie wskazuje głośność (np. 3%).
             self.sync_knob_to_volume()
-            # ----------------------------------------------------
 
             lbl_vol = self.app.font.render(f"Głośność: {int(self.app.sound.volume * 100)}%", True, WHITE)
             screen.blit(lbl_vol, (self.slider_rect.x, self.slider_rect.y - 25))

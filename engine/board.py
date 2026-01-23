@@ -9,21 +9,12 @@ class Location:
         self.gain = gain
         self.exclusive = exclusive
         self.occupant = None
-        self.image = image  # Przechowujemy grafikę tła dla lokacji
+        self.image = image  # grafikę tła
 
     def draw(self, surface, font):
-        # 1. RYSOWANIE OBRAZKA (jeśli istnieje)
+        # 1. RYSOWANIE OBRAZKA
         if self.image:
             surface.blit(self.image, (self.rect.x, self.rect.y))
-
-            # --- USUNIĘTO PRZYCIEMNIENIE ---
-            # Poniższe linie tworzyły ciemny prostokąt na górze karty.
-            # s = pygame.Surface((self.rect.width, self.rect.height))
-            # s.set_alpha(50)
-            # s.fill((0,0,0))
-            # surface.blit(s, (self.rect.x, self.rect.y))
-            # -------------------------------
-
         else:
             # Fallback (kolor), jeśli grafika się nie załaduje
             color = (80, 90, 80)
@@ -38,16 +29,15 @@ class Location:
         else:
             pygame.draw.rect(surface, border_col, self.rect, 2, border_radius=10)
 
-        # 3. Tekst (z cieniem dla czytelności na obrazku)
-        # Rysujemy cień (czarny) lekko przesunięty
+        #cień (czarny) lekko przesunięty
         shadow_surf = font.render(self.name, True, (0, 0, 0))
         surface.blit(shadow_surf, (self.rect.x + 7, self.rect.y + 7))
 
-        # Rysujemy właściwy tekst (biały)
+        #tekst (biały)
         text_surf = font.render(self.name, True, (255, 255, 255))
         surface.blit(text_surf, (self.rect.x + 5, self.rect.y + 5))
 
-        # 4. Pionek (jeśli zajęte)
+        # Pionek (jeśli zajęte)
         if self.occupant:
             # Rysujemy kółko na środku karty
             pygame.draw.circle(surface, (255, 255, 255), self.rect.center, 12)

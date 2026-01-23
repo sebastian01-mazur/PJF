@@ -2,16 +2,18 @@
 import pygame
 import random
 import os
+import time
 from settings import *
 from engine.card import Card, CARD_DB, CardType, CardTag
 from engine.player import Player
 from engine.board import Location
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Tuple
 
 
 class GameManager:
     def __init__(self, app):
         self.app = app
+        self.start_time = time.time()
 
         self.btn_menu: pygame.Rect = pygame.Rect(0, 0, 0, 0)
         self.bg_original: Optional[pygame.Surface] = None
@@ -23,58 +25,34 @@ class GameManager:
         self.card_images: Dict[str, Optional[pygame.Surface]] = {}
 
         self.locations: List[Location] = []
-
-        self.LOC_W: int = 110
-        self.LOC_H: int = 160
-        self.LOC_GAP: int = 20
+        self.LOC_W, self.LOC_H, self.LOC_GAP = 110, 160, 20
 
         try:
             self.bg_original = pygame.image.load("assets/bg.PNG")
         except FileNotFoundError:
             pass
 
-        files_map = {
-            "brzeg": "brzeg.png", "las": "las.png", "zywica": "zywica.png",
-            "kamyki": "kamyki.png", "krzaki": "krzaki.png", "polana": "polana.png"
-        }
-        for key, filename in files_map.items():
-            path = os.path.join("assets", filename)
-            if os.path.exists(path):
-                raw_img = pygame.image.load(path)
-                self.images_db[key] = pygame.transform.smoothscale(raw_img, (self.LOC_W, self.LOC_H))
-            else:
-                self.images_db[key] = None
+        # Ładowanie grafik
+        for k, f in {"brzeg": "brzeg.png", "las": "las.png", "zywica": "zywica.png", "kamyki": "kamyki.png",
+                     "krzaki": "krzaki.png", "polana": "polana.png"}.items():
+            path = os.path.join("assets", f)
+            self.images_db[k] = pygame.transform.smoothscale(pygame.image.load(path),
+                                                             (self.LOC_W, self.LOC_H)) if os.path.exists(path) else None
 
-        files_res = {
-            "twig": "twigs.png", "resin": "resin.png",
-            "pebble": "stones.png", "berry": "berries.png"
-        }
-        for key, filename in files_res.items():
-            path = os.path.join("assets", filename)
-            if os.path.exists(path):
-                raw_img = pygame.image.load(path)
-                self.images_res[key] = pygame.transform.smoothscale(raw_img, (30, 30))
-            else:
-                self.images_res[key] = None
+        for k, f in {"twig": "twigs.png", "resin": "resin.png", "pebble": "stones.png", "berry": "berries.png"}.items():
+            path = os.path.join("assets", f)
+            self.images_res[k] = pygame.transform.smoothscale(pygame.image.load(path), (30, 30)) if os.path.exists(
+                path) else None
 
-        cards_files = {
-            "Farma": "farm.png", "Sklep": "shop.png", "Zamek": "castle.png",
-            "Król": "king.png", "Mąż": "mar.png", "Żona": "mar.png",
-            "Sędzia": "judge.png", "Historyk": "history.png",
-            "Karczmarz": "innkeeper.png", "Kupiec": "shopkeeper.png",
-            "Rezydencja": "res.png"
-        }
+        cards_files = {"Farma": "farm.png", "Sklep": "shop.png", "Zamek": "castle.png", "Król": "king.png",
+                       "Mąż": "mar.png", "Żona": "mar.png", "Sędzia": "judge.png", "Historyk": "history.png",
+                       "Karczmarz": "innkeeper.png", "Kupiec": "shopkeeper.png", "Rezydencja": "res.png"}
+        for name, f in cards_files.items():
+            path = os.path.join("assets", f)
+            self.card_images[name] = pygame.transform.smoothscale(pygame.image.load(path),
+                                                                  (100, 140)) if os.path.exists(path) else None
 
-        CARD_W, CARD_H = 100, 140
-
-        for name, filename in cards_files.items():
-            path = os.path.join("assets", filename)
-            if os.path.exists(path):
-                img = pygame.image.load(path)
-                self.card_images[name] = pygame.transform.smoothscale(img, (CARD_W, CARD_H))
-            else:
-                self.card_images[name] = None
-
+        #List Comprehension]
         source = CARD_DB * 4
         random.shuffle(source)
         self.deck = [Card(d) for d in source]
@@ -82,30 +60,21 @@ class GameManager:
         self.players = [Player("Gracz 1", P1_COLOR), Player("Gracz 2", P2_COLOR)]
         self.turn_idx: int = 0
 
-        # [ZMIANA] Rozdajemy tylko 3 karty na start
+        # Start z 3 kartami
         for p in self.players:
             for _ in range(3):
                 if self.deck: p.hand.append(self.deck.pop())
 
         self.meadow: List[Card] = []
         self.refill_meadow()
-
         self.info_msg: str = "Zaczyna Gracz 1 (ZIMA)."
-
         self.update_layout()
 
     def update_layout(self) -> None:
-        w = self.app.width
-        h = self.app.height
-
+        w, h = self.app.width, self.app.height
         if self.bg_original:
             self.bg_image = pygame.transform.scale(self.bg_original, (w, h))
-
         self.btn_menu = pygame.Rect(w - 120, 10, 110, 40)
-
-        total_width = (6 * self.LOC_W) + (5 * self.LOC_GAP)
-        start_x = (w - total_width) // 2
-        y = 60
 
         loc_defs = [
             ("Brzeg (2 Gałązki)", {"twig": 2}, True, "brzeg"),
@@ -117,20 +86,15 @@ class GameManager:
         ]
 
         if not self.locations:
+            #Funkcja enumerate]
+            start_x, y = (w - ((6 * 110) + (5 * 20))) // 2, 60
             for i, (name, gain, excl, img_key) in enumerate(loc_defs):
-                current_x = start_x + (i * (self.LOC_W + self.LOC_GAP))
-                rect = pygame.Rect(current_x, y, self.LOC_W, self.LOC_H)
-                img = self.images_db.get(img_key)
-                self.locations.append(Location(name, rect.x, rect.y, gain, excl, image=img))
-                self.locations[-1].rect.width = self.LOC_W
-                self.locations[-1].rect.height = self.LOC_H
+                rect = pygame.Rect(start_x + (i * 130), y, 110, 160)
+                self.locations.append(Location(name, rect.x, rect.y, gain, excl, image=self.images_db.get(img_key)))
         else:
+            start_x = (w - ((6 * 110) + (5 * 20))) // 2
             for i, loc in enumerate(self.locations):
-                current_x = start_x + (i * (self.LOC_W + self.LOC_GAP))
-                loc.rect.x = current_x
-                loc.rect.y = y
-                loc.rect.width = self.LOC_W
-                loc.rect.height = self.LOC_H
+                loc.rect.x = start_x + (i * 130)
 
     @property
     def current_player(self) -> Player:
@@ -141,18 +105,13 @@ class GameManager:
             self.meadow.append(self.deck.pop())
 
     def next_turn(self) -> None:
-        # Sprawdzamy, czy gra się skończyła (obaj gracze Finished)
-        if self.players[0].finished and self.players[1].finished:
+        if all(p.finished for p in self.players):  # [Wykład: Funkcja all]
             self.calc_winner()
             return
 
-        # Przełącz gracza
         self.turn_idx = (self.turn_idx + 1) % 2
-
-        # Jeśli następny gracz już skończył grę, wróć do poprzedniego
         if self.current_player.finished:
             self.turn_idx = (self.turn_idx + 1) % 2
-            # Jeśli i on skończył, to znaczy że obaj skończyli
             if self.current_player.finished:
                 self.calc_winner()
                 return
@@ -161,334 +120,219 @@ class GameManager:
         self.info_msg = f"Tura: {p.name} ({p.season})"
 
     def calc_winner(self) -> None:
-        p1 = self.players[0]
-        p2 = self.players[1]
+        p1, p2 = self.players
+        duration = time.time() - self.start_time
 
-        msg = f"KONIEC! {p1.name}: {p1.score} VP vs {p2.name}: {p2.score} VP. "
-        if p1.score > p2.score:
-            msg += f"Wygrywa {p1.name}!"
-        elif p2.score > p1.score:
-            msg += f"Wygrywa {p2.name}!"
-        else:
-            msg += "REMIS!"
-
-        self.info_msg = msg
+        #Wyrażenie warunkowe]
+        winner = f"WYGRAŁ: {p1.name}!" if p1.score > p2.score else (
+            f"WYGRAŁ: {p2.name}!" if p2.score > p1.score else "REMIS!")
+        self.app.game_over_scene.set_results(winner, duration)
+        self.app.change_state("GAME_OVER")
 
     def prepare_season(self) -> None:
         p = self.current_player
-
-        # Ściągamy robotników z planszy
         for loc in self.locations:
             if loc.occupant == p: loc.occupant = None
 
-        if p.season == "ZIMA":
-            p.season = "WIOSNA";
-            p.workers_total += 1
-            if p.activate_production():
-                self.info_msg = "Wiosna: Produkcja aktywna!"
-        elif p.season == "WIOSNA":
-            p.season = "LATO";
-            p.workers_total += 1
-            # Lato: dobierz 2 karty
-            if self.deck: p.hand.append(self.deck.pop())
-            if self.deck: p.hand.append(self.deck.pop())
-        elif p.season == "LATO":
-            p.season = "JESIEŃ";
-            p.workers_total += 2
-            if p.activate_production():
-                self.info_msg = "Jesień: Produkcja aktywna!"
-        elif p.season == "JESIEŃ":
-            p.finished = True
-            p.workers_total = 0
-            self.info_msg = f"{p.name} zakończył grę."
-            self.next_turn()
-            return
+        #Pattern Matching - match/case]
+        match p.season:
+            case "ZIMA":
+                p.season = "WIOSNA";
+                p.workers_total += 1
+                if p.activate_production(): self.info_msg = "Wiosna: Produkcja aktywna!"
+            case "WIOSNA":
+                p.season = "LATO";
+                p.workers_total += 1
+                for _ in range(2):
+                    if self.deck: p.hand.append(self.deck.pop())
+            case "LATO":
+                p.season = "JESIEŃ";
+                p.workers_total += 2
+                if p.activate_production(): self.info_msg = "Jesień: Produkcja aktywna!"
+            case "JESIEŃ":
+                p.finished = True;
+                p.workers_total = 0;
+                self.info_msg = f"{p.name} zakończył grę."
+                self.next_turn();
+                return
 
         p.workers_available = p.workers_total
-        self.info_msg = f"{p.name}: Sezon {p.season} rozpoczęty!"
-        # Uwaga: Nie wywołujemy next_turn(), bo przygotowanie sezonu to akcja gracza,
-        # po której (zazwyczaj) ma on jeszcze ruch lub kończy turę, ale tutaj
-        # przyjęliśmy, że zmiana pory roku zużywa turę.
         self.next_turn()
 
     def handle_click(self, pos: Tuple[int, int]) -> None:
         if self.btn_menu.collidepoint(pos):
-            self.app.change_state("MENU")
+            self.app.change_state("MENU");
             return
-
         if "KONIEC" in self.info_msg: return
-        p = self.current_player
-        w, h = self.app.width, self.app.height
 
-        # Przycisk zmiany sezonu
-        btn_season = pygame.Rect(w - 220, h - 60, 200, 40)
-        if btn_season.collidepoint(pos):
+        p = self.current_player
+
+        # Zmiana sezonu
+        if pygame.Rect(self.app.width - 220, self.app.height - 60, 200, 40).collidepoint(pos):
             if p.workers_available == 0:
                 self.prepare_season()
             else:
                 self.info_msg = "Masz jeszcze robotników!"
             return
 
-        # 1. Obsługa LOKACJI (Robotnicy)
+        # Lokacje
         if p.workers_available > 0:
             for loc in self.locations:
                 if loc.rect.collidepoint(pos):
-                    if loc.exclusive and loc.occupant:
-                        self.info_msg = "Zajęte!"
-                        return
+                    if loc.exclusive and loc.occupant: self.info_msg = "Zajęte!"; return
+
                     if "cards" in loc.gain:
                         for _ in range(loc.gain["cards"]):
-                            if self.deck and len(p.hand) < 8:  # Limit ręki przy dobieraniu
-                                p.hand.append(self.deck.pop())
+                            if self.deck and len(p.hand) < 8: p.hand.append(self.deck.pop())
                     else:
-                        for r, a in loc.gain.items(): p.resources[r] += a
+                        p.gain_resources(loc.gain)
 
                     if loc.exclusive: loc.occupant = p
-                    p.workers_available -= 1
-                    self.next_turn()
+                    p.workers_available -= 1;
+                    self.next_turn();
                     return
 
-        # 2. Obsługa RYNKU (Kupowanie do Ręki)
+        # Rynek (Kupno do ręki)
         for i, card in enumerate(self.meadow):
             if card.rect and card.rect.collidepoint(pos):
-                self.action_buy_from_market(p, card, i)
+                self.action_buy_from_market(p, card, i);
                 return
 
-        # 3. Obsługa RĘKI (Zagrywanie do Miasta)
-        start_x = 20;
-        hand_y = h - 170
+        # Ręka (Zagranie do miasta)
+        start_x, hand_y = 20, self.app.height - 170
         for i, card in enumerate(p.hand):
-            rect = pygame.Rect(start_x + (i * 110), hand_y, 100, 140)
-            if rect.collidepoint(pos):
-                self.action_play_from_hand(p, card, i)
+            if pygame.Rect(start_x + (i * 110), hand_y, 100, 140).collidepoint(pos):
+                self.action_play_from_hand(p, card, i);
                 return
 
-    # [NOWA LOGIKA] Kupno z Rynku -> Ręka
     def action_buy_from_market(self, p: Player, card: Card, index: int) -> None:
-        # Sprawdź limit ręki (np. 6 kart)
-        if len(p.hand) >= 6:
-            self.info_msg = "Masz pełną rękę (max 6)!"
-            return
-
-        # Sprawdź czy stać (surowce LUB combo)
+        if len(p.hand) >= 6: self.info_msg = "Pełna ręka!"; return
         if p.can_afford(card):
-            is_free = p.pay(card)  # Pobiera surowce
-
-            # Przenieś z Łąki do Ręki
+            is_free = p.pay(card)
             p.hand.append(card)
-            self.meadow.pop(index)
+            self.meadow.pop(index);
             self.refill_meadow()
-
-            txt = " (DARMOWE KUPNO)" if is_free else ""
-            self.info_msg = f"Kupiono {card.name} do ręki{txt}."
+            self.info_msg = f"Kupiono {card.name}." + (" (FREE)" if is_free else "")
             self.next_turn()
         else:
-            self.info_msg = "Nie stać Cię na kupno tej karty!"
+            self.info_msg = "Nie stać Cię!"
 
-    # [NOWA LOGIKA] Zagranie z Ręki -> Miasto
     def action_play_from_hand(self, p: Player, card: Card, index: int) -> None:
-        # Sprawdź limit miasta
-        if len(p.city) >= 15:
-            self.info_msg = "Miasto pełne (max 15)!"
-            return
+        if len(p.city) >= 15: self.info_msg = "Miasto pełne!"; return
 
-        # Zgodnie z życzeniem: zagranie z ręki jest DARMOWE (koszt 0)
-        # Ale zużywa turę.
-
-        # Sprawdzamy triggery (bonusy z niebieskich kart w mieście)
-        trigger_msgs = []
-        if hasattr(p, 'check_triggers'):
-            trigger_msgs = p.check_triggers(card)
-
-        # Obsługa bonusów (dobieranie kart)
+        trigger_msgs = p.check_triggers(card) if hasattr(p, 'check_triggers') else []
         for msg in trigger_msgs:
             if "DRAW_CARD" in msg:
                 try:
-                    count = int(msg.split(":")[1])
-                    for _ in range(count):
-                        if self.deck and len(p.hand) < 6:
-                            p.hand.append(self.deck.pop())
+                    for _ in range(int(msg.split(":")[1])):
+                        if self.deck and len(p.hand) < 6: p.hand.append(self.deck.pop())
                 except:
                     pass
 
-        # Przenieś z Ręki do Miasta
-        p.city.append(card)
+        p.city.append(card);
         p.hand.pop(index)
+        p.stats["cards_played"] += 1
+        if card.type == CardType.PROD: p.gain_resources(card.benefit)
 
-        # Efekt natychmiastowy (zielone karty)
-        if card.type == CardType.PROD:
-            for r, a in card.benefit.items(): p.resources[r] += a
-
-        bonus_txt = " +Bonus!" if trigger_msgs else ""
-        self.info_msg = f"Zagrałeś {card.name} do miasta{bonus_txt}."
-
+        self.info_msg = f"Zagrałeś {card.name}."
         self.next_turn()
 
-    def get_cards_by_link_id(self, link_id: str, search_mode: str) -> List[str]:
-        names = set()
-        for data in CARD_DB:
-            if search_mode == 'PROVIDER':
-                if data.get("link") == link_id:
-                    names.add(data["name"])
-            elif search_mode == 'RECEIVER':
-                if data.get("link_req") == link_id:
-                    names.add(data["name"])
-        return list(names)
+    def get_cards_by_link_id(self, link_id: str, mode: str) -> List[str]:
+        # [Wykład: Funkcja filter + map (zbiór nazw)]
+        if mode == 'PROVIDER':
+            return [d["name"] for d in CARD_DB if d.get("link") == link_id]
+        elif mode == 'RECEIVER':
+            return [d["name"] for d in CARD_DB if d.get("link_req") == link_id]
+        return []
 
     def draw_hover_tooltip(self, screen: pygame.Surface, card: Card, mouse_pos: Tuple[int, int]) -> None:
-        font_bold = pygame.font.SysFont("Arial", 14, bold=True)
-        font_reg = pygame.font.SysFont("Arial", 14)
+        font_b, font_r = pygame.font.SysFont("Arial", 14, bold=True), pygame.font.SysFont("Arial", 14)
+        res_map = {"twig": "Drewno", "resin": "Żywica", "pebble": "Kamyk", "berry": "Jagoda"}
 
-        res_trans = {"twig": "Drewno", "resin": "Żywica", "pebble": "Kamyk", "berry": "Jagoda"}
-
-        lines = []
-        lines.append((card.name, (255, 215, 0)))
-        lines.append((f"Typ: {card.tag} / {card.type}", (200, 200, 200)))
-
-        # Wyświetlamy koszt (dotyczy kupna z Rynku)
-        cost_str = []
-        for r, a in card.cost.items():
-            name_pl = res_trans.get(r, r)
-            cost_str.append(f"{a} {name_pl}")
-        lines.append((f"Cena (Rynek): {', '.join(cost_str)}", (255, 150, 150)))
-
-        lines.append(("Efekt:", (150, 255, 150)))
+        lines = [(card.name, (255, 215, 0)), (f"Typ: {card.tag} / {card.type}", (200, 200, 200))]
+        cost_txt = ", ".join([f"{v} {res_map.get(k, k)}" for k, v in card.cost.items()])
+        lines.append((f"Cena: {cost_txt}", (255, 150, 150)))
+        lines.append(("Efekt:", (150, 255, 150)));
         lines.append((card.desc, (255, 255, 255)))
 
         if card.link:
-            receivers = self.get_cards_by_link_id(card.link, 'RECEIVER')
-            if receivers:
-                names_str = ", ".join(receivers)
-                lines.append((f"Umożliwia darmowe kupno: {names_str}", (100, 200, 255)))
-
+            lines.append(
+                (f"Umożliwia darmowe: {', '.join(self.get_cards_by_link_id(card.link, 'RECEIVER'))}", (100, 200, 255)))
         if card.link_req:
-            providers = self.get_cards_by_link_id(card.link_req, 'PROVIDER')
-            if providers:
-                req_name = providers[0]
-                is_free = self.current_player.check_free_build(card)
-                if is_free:
-                    lines.append((f"KUP ZA DARMO! (Masz {req_name})", (0, 255, 0)))
-                else:
-                    lines.append((f"Darmowe kupno jeśli masz: {req_name}", (255, 200, 100)))
+            prov = self.get_cards_by_link_id(card.link_req, 'PROVIDER')
+            name = prov[0] if prov else "?"
+            col = (0, 255, 0) if self.current_player.check_free_build(card) else (255, 200, 100)
+            lines.append((f"DARMOWA jeśli masz: {name}", col))
 
-        box_w = 300
-        box_h = 20 + (len(lines) * 20)
-
-        x, y = mouse_pos
-        x += 15
-        y += 15
-
+        box_w, box_h = 300, 20 + (len(lines) * 20)
+        x, y = mouse_pos[0] + 15, mouse_pos[1] + 15
         if x + box_w > self.app.width: x -= box_w + 30
         if y + box_h > self.app.height: y -= box_h + 30
 
-        s = pygame.Surface((box_w, box_h))
-        s.set_alpha(230)
+        s = pygame.Surface((box_w, box_h));
+        s.set_alpha(230);
         s.fill((20, 20, 30))
-        screen.blit(s, (x, y))
-
+        screen.blit(s, (x, y));
         pygame.draw.rect(screen, (100, 100, 100), (x, y, box_w, box_h), 2)
 
-        curr_y = y + 10
-        for text, color in lines:
-            surf = font_bold.render(text, True, color) if text == card.name else font_reg.render(text, True, color)
-            screen.blit(surf, (x + 10, curr_y))
-            curr_y += 20
+        for i, (txt, col) in enumerate(lines):
+            screen.blit(font_b.render(txt, True, col) if i == 0 else font_r.render(txt, True, col),
+                        (x + 10, y + 10 + (i * 20)))
 
     def draw(self) -> None:
         screen = self.app.screen
-        w, h = self.app.width, self.app.height
-        mouse_pos = pygame.mouse.get_pos()
+        screen.blit(self.bg_image, (0, 0)) if self.bg_image else screen.fill(BG_COLOR)
 
-        if self.bg_image:
-            screen.blit(self.bg_image, (0, 0))
-        else:
-            screen.fill(BG_COLOR)
-        font = self.app.font
-
+        # UI Menu
         pygame.draw.rect(screen, (150, 50, 50), self.btn_menu, border_radius=5)
-        pygame.draw.rect(screen, WHITE, self.btn_menu, 2, border_radius=5)
-        txt = font.render("MENU", True, WHITE)
-        screen.blit(txt, txt.get_rect(center=self.btn_menu.center))
+        screen.blit(self.app.font.render("MENU", True, WHITE), (self.btn_menu.x + 35, self.btn_menu.y + 10))
 
-        for loc in self.locations: loc.draw(screen, font)
+        for loc in self.locations: loc.draw(screen, self.app.font)
 
         p = self.current_player
+        mx, my = pygame.mouse.get_pos()
+        hovered = None
 
-        hovered_card: Optional[Card] = None
-
-        meadow_y = 240
-        start_mx = (w - (8 * 110)) // 2
-
-        # Rysowanie Rynku (Łąki)
+        # Łąka (Rynek)
+        start_mx = (self.app.width - (8 * 110)) // 2
         for i, card in enumerate(self.meadow):
-            # Sprawdzamy combo TYLKO dla rynku (bo tylko tu płacimy)
-            bonus_name = None
-            if hasattr(p, 'check_bonus_potential'):
-                bonus_name = p.check_bonus_potential(card.tag)
+            bonus = p.check_bonus_potential(card.tag) if hasattr(p, 'check_bonus_potential') else None
+            card.draw_visual(screen, start_mx + (i * 110), 250, self.app.font, bonus_source=bonus,
+                             image=self.card_images.get(card.name))
+            if card.rect.collidepoint((mx, my)): hovered = card
 
-            img = self.card_images.get(card.name)
-            card.draw_visual(screen, start_mx + (i * 110), meadow_y + 10, font, bonus_source=bonus_name, image=img)
-
-            if card.rect and card.rect.collidepoint(mouse_pos):
-                hovered_card = card
-
-        py = h - 200
-        pygame.draw.rect(screen, UI_PANEL_COLOR, (0, py, w, 200))
-        pygame.draw.line(screen, p.color, (0, py), (w, py), 5)
+        # Panel UI
+        py = self.app.height - 200
+        pygame.draw.rect(screen, UI_PANEL_COLOR, (0, py, self.app.width, 200))
         screen.blit(self.app.title_font.render(self.info_msg, True, WHITE), (20, py + 10))
 
-        rx = 20;
-        ry = py + 50
-        res_types = ["twig", "resin", "pebble", "berry"]
-        for res_key in res_types:
-            icon = self.images_res.get(res_key)
-            if icon:
-                screen.blit(icon, (rx, ry - 15))
-            else:
-                col = RES_COLORS.get(res_key, (255, 255, 255))
-                pygame.draw.circle(screen, col, (rx + 15, ry), 10)
-
-            screen.blit(font.render(str(p.resources[res_key]), True, WHITE), (rx + 35, ry - 10))
+        # Surowce
+        rx = 20
+        for k in ["twig", "resin", "pebble", "berry"]:
+            if self.images_res.get(k): screen.blit(self.images_res[k], (rx, py + 35))
+            screen.blit(self.app.font.render(str(p.resources[k]), True, WHITE), (rx + 35, py + 40));
             rx += 80
 
-        screen.blit(font.render(f"Robotnicy: {p.workers_available}/{p.workers_total}", True, WHITE), (rx + 20, ry - 10))
-        score_text = font.render(f"PUNKTY: {p.score}", True, (255, 215, 0))
-        screen.blit(score_text, (rx + 150, ry - 10))
+        screen.blit(self.app.font.render(f"Robotnicy: {p.workers_available}/{p.workers_total}", True, WHITE),
+                    (rx + 20, py + 40))
+        screen.blit(self.app.font.render(f"PUNKTY: {p.score}", True, (255, 215, 0)), (rx + 150, py + 40))
 
-        city_start_y = 150
-        city_x = 20
-        title_city = font.render(f"TWOJE MIASTO ({len(p.city)}/15):", True, (255, 255, 200))
-        screen.blit(title_city, (city_x, city_start_y - 25))
+        # Miasto
+        screen.blit(self.app.font.render(f"MIASTO ({len(p.city)}/15):", True, (255, 255, 200)), (20, 125))
+        for i, c in enumerate(p.city):
+            col = (150, 255, 150) if c.type == CardType.PROD else (
+                (150, 150, 255) if c.type == CardType.PASSIVE else (200, 200, 200))
+            screen.blit(self.app.font.render(f"- {c.name}", True, col), (20, 150 + (i * 20)))
 
-        for i, built_card in enumerate(p.city):
-            c_col = (200, 200, 200)
-            if built_card.type == CardType.PROD:
-                c_col = (150, 255, 150)
-            elif built_card.type == CardType.PASSIVE:
-                c_col = (150, 150, 255)
-            card_name = font.render(f"- {built_card.name}", True, c_col)
-            screen.blit(card_name, (city_x, city_start_y + (i * 20)))
-
-        # Rysowanie Ręki
-        hx = 20;
-        hy = py + 80
-        # Nagłówek dla Ręki
-        hand_title = font.render(f"RĘKA (Ekwipunek) {len(p.hand)}/6", True, (200, 200, 200))
-        screen.blit(hand_title, (hx, hy - 25))
-
+        # Ręka
+        hx, hy = 20, py + 80
+        screen.blit(self.app.font.render(f"RĘKA {len(p.hand)}/6", True, (200, 200, 200)), (hx, hy - 20))
         for i, card in enumerate(p.hand):
-            # Na ręce NIE pokazujemy combo, bo zagranie i tak jest darmowe
-            img = self.card_images.get(card.name)
-            card.draw_visual(screen, hx + (i * 110), hy, font, bonus_source=None, image=img)
+            card.draw_visual(screen, hx + (i * 110), hy, self.app.font, image=self.card_images.get(card.name))
+            if card.rect.collidepoint((mx, my)): hovered = card
 
-            if card.rect and card.rect.collidepoint(mouse_pos):
-                hovered_card = card
+        if hovered: self.draw_hover_tooltip(screen, hovered, (mx, my))
 
-        if hovered_card:
-            self.draw_hover_tooltip(screen, hovered_card, mouse_pos)
-
-        bs_rect = pygame.Rect(w - 220, h - 60, 200, 40)
-        col = (100, 100, 100)
-        if p.workers_available == 0 and not p.finished: col = (50, 150, 50)
-        pygame.draw.rect(screen, col, bs_rect, border_radius=8)
-        screen.blit(font.render("NASTĘPNA PORA", True, WHITE), (bs_rect.x + 30, bs_rect.y + 10))
+        bs = pygame.Rect(self.app.width - 220, self.app.height - 60, 200, 40)
+        pygame.draw.rect(screen, (50, 150, 50) if p.workers_available == 0 else (100, 100, 100), bs, border_radius=8)
+        screen.blit(self.app.font.render("NASTĘPNA PORA", True, WHITE), (bs.x + 30, bs.y + 10))
