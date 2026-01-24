@@ -11,10 +11,6 @@ from typing import Dict, List, Optional, Tuple
 
 
 class GameManager:
-    """
-    Główna klasa zarządzająca logiką gry.
-    Spinamy tu wszystko: grafikę, graczy, tury i zasady.
-    """
 
     def __init__(self, app):
         self.app = app
@@ -85,7 +81,6 @@ class GameManager:
         self.update_layout()
 
     def update_layout(self) -> None:
-        """Przelicza pozycje elementów UI (przydatne przy zmianie rozdziałki)."""
         w, h = self.app.width, self.app.height
         if self.bg_original:
             self.bg_image = pygame.transform.scale(self.bg_original, (w, h))
@@ -116,16 +111,16 @@ class GameManager:
 
     @property
     def current_player(self) -> Player:
-        """Zwraca obiekt gracza, którego jest teraz kolej."""
+        #Zwraca obiekt gracza, którego jest teraz kolej.
         return self.players[self.turn_idx]
 
     def refill_meadow(self) -> None:
-        """Dopycha karty na rynku do 8 sztuk."""
+        #Dopycha karty na rynku do 8 sztuk.
         while len(self.meadow) < 8 and self.deck:
             self.meadow.append(self.deck.pop())
 
     def next_turn(self) -> None:
-        """Przekazanie pałeczki następnemu graczowi."""
+        #Przekazanie pałeczki następnemu graczowi.#
         # Funkcja all - szybkie sprawdzenie czy wszyscy skończyli grę
         if all(p.finished for p in self.players):
             self.calc_winner()
@@ -145,7 +140,7 @@ class GameManager:
         self.info_msg = f"Tura: {p.name} ({p.season})"
 
     def calc_winner(self) -> None:
-        """Podliczenie punktów i koniec imprezy."""
+        #Podliczenie punktów i koniec imprezy.
         p1, p2 = self.players
         duration = time.time() - self.start_time
 
@@ -157,7 +152,7 @@ class GameManager:
         self.app.change_state("GAME_OVER")
 
     def prepare_season(self) -> None:
-        """Obsługa zmiany pory roku - reset workerów i bonusy."""
+        #Obsługa zmiany pory roku - reset workerów i bonusy.
         p = self.current_player
         # Zdejmujemy pionki z planszy
         for loc in self.locations:
@@ -190,7 +185,7 @@ class GameManager:
         self.next_turn()
 
     def handle_click(self, pos: Tuple[int, int]) -> None:
-        """Główny router kliknięć myszką."""
+        #kliknięć myszką.
         if self.btn_menu.collidepoint(pos):
             self.app.change_state("MENU");
             return
@@ -240,7 +235,7 @@ class GameManager:
                 return
 
     def action_buy_from_market(self, p: Player, card: Card, index: int) -> None:
-        """Logika kupowania: pobiera surowce i przenosi kartę do ręki."""
+        #Logika kupowania: pobiera surowce i przenosi kartę do ręki.
         if len(p.hand) >= 6: self.info_msg = "Pełna ręka!"; return
         if p.can_afford(card):
             is_free = p.pay(card)  # Pobranie surowców
@@ -253,7 +248,7 @@ class GameManager:
             self.info_msg = "Nie stać Cię!"
 
     def action_play_from_hand(self, p: Player, card: Card, index: int) -> None:
-        """Logika zagrywania: z ręki do miasta (za darmo, ale zużywa akcję)."""
+        #Logika zagrywania: z ręki do miasta (za darmo, ale zużywa akcję).
         if len(p.city) >= 15: self.info_msg = "Miasto pełne!"; return
 
         # Sprawdzamy pasywne bonusy (niebieskie karty)
@@ -277,7 +272,7 @@ class GameManager:
         self.next_turn()
 
     def get_cards_by_link_id(self, link_id: str, mode: str) -> List[str]:
-        """Pomocnik do szukania Combo w bazie."""
+        #Pomocnik do szukania Combo w bazie.
         # Funkcja filter/map - filtrujemy bazę żeby znaleźć pasujące nazwy
         if mode == 'PROVIDER':
             return [d["name"] for d in CARD_DB if d.get("link") == link_id]
@@ -286,7 +281,7 @@ class GameManager:
         return []
 
     def draw_hover_tooltip(self, screen: pygame.Surface, card: Card, mouse_pos: Tuple[int, int]) -> None:
-        """Rysuje dymek z info o karcie (Tooltip)."""
+        #Rysuje dymek z info o karcie (Tooltip).
         font_b, font_r = pygame.font.SysFont("Arial", 14, bold=True), pygame.font.SysFont("Arial", 14)
         res_map = {"twig": "Drewno", "resin": "Żywica", "pebble": "Kamyk", "berry": "Jagoda"}
 
@@ -326,7 +321,7 @@ class GameManager:
                         (x + 10, y + 10 + (i * 20)))
 
     def draw(self) -> None:
-        """Główna pętla renderująca - rysuje wszystko co widać w grze."""
+        #Główna pętla renderująca - rysuje wszystko co widać w grze.#
         screen = self.app.screen
         screen.blit(self.bg_image, (0, 0)) if self.bg_image else screen.fill(BG_COLOR)
 

@@ -22,7 +22,7 @@ class Player:
             "total_res": {"twig": 0, "resin": 0, "pebble": 0, "berry": 0}
         }
 
-    @property  # [Wykład: Dekorator @property]
+    @property  #  Dekorator @property]
     def score(self) -> int:
         #Programowanie funkcyjne - Wyrażenie generatorowe]
         return sum(c.points for c in self.city)
